@@ -1,3 +1,6 @@
+import random
+import json
+
 class Node:
     def __init__(self, data):
         self.data = data
@@ -78,6 +81,16 @@ class DoublyLinkedList:
             current = current.next
         return None
 
+    def get_node_at(self, index):
+        current = self.head
+        i = 0
+        while current:
+            if i == index:
+                return current
+            current = current.next
+            i += 1
+        return None
+
     def traverse_forward(self):
         elements = []
         current = self.head
@@ -102,6 +115,8 @@ class DoublyLinkedList:
         return " <-> ".join(str(e) for e in elements) if elements else "Empty list"
 
 
+# Clase de song
+
 class Song:
     def __init__(self, title, artist, album, duration=0):
         self.title = title
@@ -118,11 +133,18 @@ class Song:
         return False
 
 
+# clase de playlist
+
 class Playlist:
     def __init__(self, name):
         self.name = name
         self._list = DoublyLinkedList()
         self.current = None
+        self._shuffle = False          
+        self._shuffle_order = []       
+        self._shuffle_index = 0       
+
+    # operaciones basicas de la playlist
 
     def add_song(self, song):
         self._list.append(song)
@@ -149,24 +171,69 @@ class Playlist:
             current = current.next
         return None
 
-    def play_current(self):
-        return self.current.data if self.current else None
+    # ── Playback controls ─────────────────────────────────────────────────────
 
-    def next_song(self):
+    def play(self):
+        if self.current:
+            return self.current.data
+        return None
+
+    def next(self):
+        if self._shuffle:
+            if self._shuffle_index < len(self._shuffle_order) - 1:
+                self._shuffle_index += 1
+                idx = self._shuffle_order[self._shuffle_index]
+                self.current = self._list.get_node_at(idx)
+                return self.current.data
+            return None  
+
         if self.current and self.current.next:
             self.current = self.current.next
             return self.current.data
-        return None
+        return None  
 
-    def prev_song(self):
+    def previous(self):
+        if self._shuffle:
+            if self._shuffle_index > 0:
+                self._shuffle_index -= 1
+                idx = self._shuffle_order[self._shuffle_index]
+                self.current = self._list.get_node_at(idx)
+                return self.current.data
+            return None 
+
         if self.current and self.current.prev:
             self.current = self.current.prev
             return self.current.data
-        return None
+        return None  
+
+    # Boton del shuffle
+
+    def toggle_shuffle(self):
+        self._shuffle = not self._shuffle
+
+        if self._shuffle:
+            
+            indices = list(range(self._list.size))
+            random.shuffle(indices)
+            self._shuffle_order = indices
+            self._shuffle_index = 0
+            self.current = self._list.get_node_at(self._shuffle_order[0])
+            print(f"[SHUFFLE ON]  Shuffle activated for '{self.name}'")
+        else:
+            self._shuffle_order = []
+            self._shuffle_index = 0
+            print(f"[SHUFFLE OFF] Shuffle deactivated for '{self.name}'")
+
+    @property
+    def shuffle_active(self):
+        return self._shuffle
+
+    # Display
 
     def show(self):
-        print(f"\nPlaylist: {self.name}  ({len(self._list)} songs)")
-        print("-" * 50)
+        shuffle_label = " [SHUFFLE ON]" if self._shuffle else ""
+        print(f"\nPlaylist: {self.name}  ({len(self._list)} songs){shuffle_label}")
+        print("-" * 55)
         current = self._list.head
         index = 1
         while current:
@@ -174,10 +241,67 @@ class Playlist:
             print(f"  {index:>3}. {current.data}{marker}")
             current = current.next
             index += 1
-        print("-" * 50)
+        print("-" * 55)
 
     def __len__(self):
         return len(self._list)
 
     def __str__(self):
         return f"Playlist '{self.name}' with {len(self._list)} songs"
+
+# INTERFAZ
+
+def cargar_canciones_desde_json(ruta):
+    with open(ruta, "r", encoding="utf-8") as f:
+        data = json.load(f)
+    return data
+
+
+def main():
+    playlist = Playlist("Mi playlist")
+
+    canciones = cargar_canciones_desde_json("songs_data.json")
+    for c in canciones:
+        playlist.add_song(Song(c["title"], c["artist"], c["album"]))
+
+    while True:
+        print("\n===== PLAYLIST =====")
+        print("1. Play")
+        print("2. Next")
+        print("3. Previous")
+        print("4. Mostrar playlist")
+        print("5. Toggle Shuffle (ON/OFF)")
+        print("6. Salir")
+
+        opcion = input("Elige una opción: ")
+
+        if opcion == "1":
+            song = playlist.play()
+            print(f"Reproduciendo: {song}")
+
+        elif opcion == "2":
+            song = playlist.next()
+            print(f"Siguiente: {song}")
+
+        elif opcion == "3":
+            song = playlist.previous()
+            print(f"Anterior: {song}")
+
+        elif opcion == "4":
+            playlist.show()
+
+        elif opcion == "5":
+            playlist.toggle_shuffle()
+            estado = "ON" if playlist.shuffle_active else "OFF"
+            print(f"Shuffle ahora está: {estado}")
+
+        elif opcion == "6":
+            print("Saliendo...")
+            break
+
+        else:
+            print("Opción inválida")
+
+
+if __name__ == "__main__":
+    main()
